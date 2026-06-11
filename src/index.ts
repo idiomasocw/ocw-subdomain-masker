@@ -1,13 +1,9 @@
-export interface Env {
-  ROUTE_MAP?: string;
-}
+import type { Env } from "./types";
+import { route } from "./router";
 
 export default {
-  async fetch(
-    _request: Request,
-    _env: Env,
-    _ctx: ExecutionContext,
-  ): Promise<Response> {
-    return new Response("Not implemented", { status: 501 });
+  async fetch(request: Request, env: Env, _ctx: ExecutionContext): Promise<Response> {
+    const startTime = performance.now();
+    return route(request, env, startTime);
   },
 };

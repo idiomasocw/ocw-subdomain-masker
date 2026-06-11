@@ -1,6 +1,7 @@
 name = "ocw-subdomain-masker"
 main = "src/index.ts"
 compatibility_date = "2024-11-01"
+compatibility_flags = ["nodejs_compat"]
 
 # Environment variables
 # Set ROUTE_MAP here (for dev) or in the Cloudflare dashboard (for production).
@@ -11,9 +12,10 @@ compatibility_date = "2024-11-01"
 # [vars]
 # ROUTE_MAP = '{"reward1":"https://view.genially.com/670ed038d21493d4843b3e5b","reward2":"https://..."}'
 
-# Routes — configure after deploying to Cloudflare.
-# Uncomment and set zone_name to your domain so the worker handles *.yourdomain.com.
+# Routes — intercept all subdomain traffic on onecultureworld.com.
+# Uncomment after creating the GitHub → Cloudflare Workers link and giving
+# the API token Zone:Edit permissions for onecultureworld.com.
 #
 # [[routes]]
-# pattern = "*.yourdomain.com/*"
-# zone_name = "yourdomain.com"
+# pattern = "*.onecultureworld.com/*"
+# zone_name = "onecultureworld.com"
