@@ -8,188 +8,75 @@ Implement a Cloudflare Worker in TypeScript that performs transparent subdomain 
 
 ## Tasks
 
-- [ ] 1. Scaffold project structure, types, and constants
-  - Create `package.json` — scripts: `dev` (wrangler dev), `deploy` (wrangler deploy), `test` (vitest run), `test:watch` (vitest); devDependencies: `wrangler`, `typescript`, `@cloudflare/workers-types`, `@cloudflare/vitest-pool-workers`, `vitest`, `fast-check`
-  - Create `wrangler.toml` — set `name`, `main = "src/index.ts"`, `compatibility_date`; add a commented-out `[vars]` section showing how to set `ROUTE_MAP`; add a commented-out `[[routes]]` placeholder
-  - Create `tsconfig.json` — `target: "ES2022"`, `module: "ES2022"`, `moduleResolution: "bundler"`, `types: ["@cloudflare/workers-types"]`, `strict: true`, `noEmit: true`
-  - Create `.gitignore` — include `node_modules/`, `dist/`, `.wrangler/`, `.dev.vars` (local env overrides — must not be committed)
-  - Create `vitest.config.ts` — use `defineWorkersConfig` from `@cloudflare/vitest-pool-workers/config`, pointing `wrangler.configPath` at `./wrangler.toml`
-  - Create `src/types.ts` — export `Env`, `RouteMap`, `RequestLogEntry`, `ErrorLogEntry` interfaces
-  - Create `src/constants.ts` — export `DEFAULT_ROUTE_MAP`, `SECURITY_HEADERS`, `HEADERS_TO_REMOVE`, `CORS_HEADERS`, `MAX_REDIRECTS = 5`, `UPSTREAM_TIMEOUT_MS = 30_000`
-  - Create `src/index.ts` with an empty `export default { async fetch() {} }` stub so the project compiles
+- [x] 1. Scaffold project structure, types, and constants
+  - Create `package.json` — pnpm@11.2.2, scripts: `dev`, `deploy`, `test`, `test:watch`; devDependencies: `wrangler@^3.99`, `typescript@^5.5`, `@cloudflare/workers-types@^4`, `@cloudflare/vitest-pool-workers@^0.5`, `vitest@^2.1`, `fast-check@^3.22`
+  - Create `wrangler.toml` — `name`, `main = "src/index.ts"`, `compatibility_date = "2024-11-01"`, `compatibility_flags = ["nodejs_compat"]`; commented `ROUTE_MAP` example; commented `[[routes]]` for `*.onecultureworld.com/*`
+  - Create `tsconfig.json` — strict ES2022 module worker config with `@cloudflare/workers-types`
+  - Create `.gitignore` — `node_modules/`, `dist/`, `.wrangler/`, `.dev.vars`, `package-lock.json`
+  - Create `.npmrc` — `node-linker=hoisted` for `@cloudflare/vitest-pool-workers` compatibility
+  - Create `pnpm-workspace.yaml` — `allowBuilds: esbuild, sharp, workerd`
+  - Create `vitest.config.ts` — `defineWorkersConfig` pointing at `./wrangler.toml`
+  - Create `src/types.ts`, `src/constants.ts`, `src/index.ts` stub
   - _Requirements: 1.1, 1.5, 2.4, 4.1, 6.1_
 
-- [ ] 2. Implement `extractSubdomain` and `resolveRouteMap`
-  - [ ] 2.1 Implement `extractSubdomain(hostname: string): string | null` in `src/subdomain.ts`
-    - Return the leftmost dot-delimited label, or `null` for apex hostnames (no dot present) or empty strings
-    - _Requirements: 3.1, 3.2_
-  - [ ]\* 2.2 Write property test for `extractSubdomain` — Property 7
-    - **Property 7: Apex domain returns 404**
-    - Generate hostnames without a subdomain prefix; assert `extractSubdomain()` returns `null`
-    - **Validates: Requirements 3.2**
-    - Tag: `// Feature: subdomain-masker, Property 7: Apex domain returns 404`
-  - [ ] 2.3 Implement `resolveRouteMap(env: Env): RouteMap` in `src/routeMap.ts`
-    - Parse `env.ROUTE_MAP` JSON when present and non-empty; fall back to `DEFAULT_ROUTE_MAP` otherwise
-    - _Requirements: 1.1, 1.2, 1.4, 1.5_
-  - [ ]\* 2.4 Write property test for `resolveRouteMap` — Property 1
-    - **Property 1: Route Map resolution precedence**
-    - Generate env maps (empty / non-empty) and assert env map wins when non-empty, fallback constant returned otherwise
-    - **Validates: Requirements 1.1**
-    - Tag: `// Feature: subdomain-masker, Property 1: Route Map resolution precedence`
+- [x] 2. Implement `extractSubdomain` and `resolveRouteMap`
+  - [x] 2.1 Implement `extractSubdomain(hostname: string): string | null` in `src/subdomain.ts`
+  - [x] 2.2 Property test — Property 7: Apex domain returns 404 (`test/subdomain.test.ts`)
+  - [x] 2.3 Implement `resolveRouteMap(env: Env): RouteMap` in `src/routeMap.ts`
+  - [x] 2.4 Property test — Property 1: Route Map resolution precedence (`test/routeMap.test.ts`)
 
-- [ ] 3. Implement Pass-Through Request construction
-  - [ ] 3.1 Implement `buildPassThroughRequest(request: Request, targetUrl: string): Request` in `src/proxy.ts`
-    - Copy all headers except `Host` and any `CF-*` prefixed headers; set `Host` to `new URL(targetUrl).hostname`
-    - Preserve original method and body
-    - _Requirements: 2.2, 2.3_
-  - [ ]\* 3.2 Write property test for `buildPassThroughRequest` — Property 3
-    - **Property 3: Pass-Through Request construction**
-    - Generate requests with arbitrary mixes of `Host`, `CF-*`, and regular headers plus a target URL
-    - Assert output omits `Host`/`CF-*`, preserves all other headers, and sets correct new `Host`
-    - **Validates: Requirements 2.2, 2.3**
-    - Tag: `// Feature: subdomain-masker, Property 3: Pass-Through Request construction`
-    - Minimum 200 iterations
+- [x] 3. Implement Pass-Through Request construction
+  - [x] 3.1 `buildPassThroughRequest` implemented (exported from `src/handlers/proxy.ts`)
+  - [x] 3.2 Property test — Property 3: Pass-Through Request construction (`test/proxy.test.ts`, 200 iterations)
 
-- [ ] 4. Implement HTML rewriter
-  - [ ] 4.1 Implement `rewriteHtml(response: Response, upstreamOrigin: string): Response` in `src/htmlRewriter.ts`
-    - Use the `HTMLRewriter` API to rewrite absolute URLs starting with `upstreamOrigin` in `href`, `src`, `action`, and `srcset` attributes to root-relative paths
-    - Only applied when response is 2xx and `Content-Type` includes `text/html`
-    - _Requirements: 2.5_
-  - [ ]\* 4.2 Write property test for `rewriteHtml` — Property 5
-    - **Property 5: HTML Upstream URL rewriting**
-    - Generate upstream origin URLs and arrays of attribute paths containing those origins
-    - Assert that after rewriting, no `href`/`src`/`action`/`srcset` value begins with the upstream origin
-    - **Validates: Requirements 2.5**
-    - Tag: `// Feature: subdomain-masker, Property 5: HTML Upstream URL rewriting`
-    - Minimum 200 iterations
+- [x] 4. Implement HTML rewriter
+  - [x] 4.1 `rewriteHtml(response, upstreamOrigin)` in `src/htmlRewriter.ts` — handles `href`, `src`, `action`, and `srcset` (with proper comma-separated descriptor parsing per the design caveat)
+  - [x] 4.2 Property test — Property 5: HTML Upstream URL rewriting (`test/htmlRewriter.test.ts`, 200 iterations)
 
-- [ ] 5. Implement security headers applier
-  - [ ] 5.1 Implement `applySecurityHeaders(response: Response): Response` in `src/securityHeaders.ts`
-    - Clone headers, set all `SECURITY_HEADERS` entries (overwriting existing values), remove `Server` and `X-Powered-By`
-    - Return a new `Response` with the modified headers and the original body/status
-    - _Requirements: 4.1, 4.2, 4.3_
-  - [ ]\* 5.2 Write property test for `applySecurityHeaders` — Property 8
-    - **Property 8: Security headers always applied**
-    - Generate `Response` objects with arbitrary status codes and header maps
-    - Assert all `SECURITY_HEADERS` are present with correct values in the output
-    - **Validates: Requirements 4.1, 6.2**
-    - Tag: `// Feature: subdomain-masker, Property 8: Security headers always applied`
-  - [ ]\* 5.3 Write property test for `applySecurityHeaders` — Property 9
-    - **Property 9: Identifying headers stripped from proxied responses**
-    - Generate responses that carry random `Server` and/or `X-Powered-By` values
-    - Assert neither header is present in the output response
-    - **Validates: Requirements 4.2, 4.3**
-    - Tag: `// Feature: subdomain-masker, Property 9: Identifying headers stripped from proxied responses`
+- [x] 5. Implement security headers applier
+  - [x] 5.1 `applySecurityHeaders(response)` in `src/securityHeaders.ts`
+  - [x] 5.2 Property test — Property 8: Security headers always applied (`test/securityHeaders.test.ts`)
+  - [x] 5.3 Property test — Property 9: Identifying headers stripped (`test/securityHeaders.test.ts`)
 
-- [ ] 6. Implement logger
-  - [ ] 6.1 Implement `logRequest(entry: RequestLogEntry): void` and `logError(entry: ErrorLogEntry): void` in `src/logger.ts`
-    - `logRequest` serialises the entry to JSON and calls `console.log`
-    - `logError` serialises the entry to JSON and calls `console.error`
-    - Neither function accesses or includes request path, query string, or headers
-    - _Requirements: 8.1, 8.2, 8.3_
-  - [ ]\* 6.2 Write property test for `logRequest` — Property 13
-    - **Property 13: Proxy request log contains all required fields**
-    - Generate `RequestLogEntry` values; capture `console.log` output; parse JSON and assert all 5 fields present with correct values
-    - **Validates: Requirements 8.1**
-    - Tag: `// Feature: subdomain-masker, Property 13: Proxy request log contains all required fields`
-    - Minimum 200 iterations
-  - [ ]\* 6.3 Write property test for `logError` — Property 14
-    - **Property 14: Error log contains required fields for all error types**
-    - Generate `ErrorLogEntry` values across all four `errorType` values; assert `errorType` is in the valid set and `message` is a non-empty string
-    - **Validates: Requirements 8.2**
-    - Tag: `// Feature: subdomain-masker, Property 14: Error log contains required fields for all error types`
-  - [ ]\* 6.4 Write property test for logger — Property 15
-    - **Property 15: No sensitive request data in log output**
-    - Generate requests with random paths, query strings, and headers; invoke logger functions; assert no log output contains path, query, or any header name/value
-    - **Validates: Requirements 8.3**
-    - Tag: `// Feature: subdomain-masker, Property 15: No sensitive request data in log output`
-    - Minimum 200 iterations
+- [x] 6. Implement logger
+  - [x] 6.1 `logRequest` and `logError` in `src/logger.ts`
+  - [x] 6.2 Property test — Property 13: Proxy request log fields (`test/logger.test.ts`, 200 iterations)
+  - [x] 6.3 Property test — Property 14: Error log fields (`test/logger.test.ts`)
+  - [x] 6.4 Property test — Property 15: No sensitive data in logs (`test/logger.test.ts`)
 
-- [ ] 7. Checkpoint — Ensure all tests pass
-  - Run `vitest --run` and confirm all utility-layer tests pass before moving to handlers.
-  - Ensure all tests pass, ask the user if questions arise.
+- [x] 7. Checkpoint — All utility-layer tests pass ✓ (29/29 at this stage)
 
-- [ ] 8. Implement CORS and health check handlers
-  - [ ] 8.1 Implement `handleCors(): Response` in `src/handlers/cors.ts`
-    - Return `204 No Content` with all `CORS_HEADERS`; security headers applied via `applySecurityHeaders`
-    - _Requirements: 6.1_
-  - [ ]\* 8.2 Write property test for `handleCors` — Property 11
-    - **Property 11: OPTIONS always returns CORS preflight response**
-    - Generate OPTIONS requests with arbitrary subdomains, paths, and route map states
-    - Assert always `204` + all required CORS headers, regardless of routing context
-    - **Validates: Requirements 6.1**
-    - Tag: `// Feature: subdomain-masker, Property 11: OPTIONS always returns CORS preflight response`
-  - [ ] 8.3 Implement `handleHealthCheck(request: Request): Response` in `src/handlers/health.ts`
-    - `GET /_health` → `200 {"status":"ok"}` with `Content-Type: application/json`
-    - Any other method → `405 Method Not Allowed` with `Content-Type: text/plain; charset=UTF-8` and body `Method not allowed`
-    - Security headers applied via `applySecurityHeaders`
-    - _Requirements: 7.1, 7.2, 7.3_
-  - [ ]\* 8.4 Write property test for `handleHealthCheck` — Property 12
-    - **Property 12: Non-GET requests to /\_health return 405**
-    - Generate HTTP methods other than `GET`; assert `405` with body `Method not allowed`
-    - **Validates: Requirements 7.3**
-    - Tag: `// Feature: subdomain-masker, Property 12: Non-GET requests to /_health return 405`
+- [x] 8. Implement CORS and health check handlers
+  - [x] 8.1 `handleCors()` in `src/handlers/cors.ts`
+  - [x] 8.2 Property test — Property 11: OPTIONS always returns CORS preflight (`test/router.test.ts`)
+  - [x] 8.3 `handleHealthCheck(request)` in `src/handlers/health.ts`
+  - [x] 8.4 Property test — Property 12: Non-GET to `/_health` returns 405 (`test/router.test.ts`)
 
-- [ ] 9. Implement proxy handler with redirect following and timeout
-  - [ ] 9.1 Implement the full `handleProxy(request, targetUrl, subdomain)` in `src/handlers/proxy.ts`
-    - Use `buildPassThroughRequest` to sanitise the request
-    - Implement manual redirect following with `redirect: "manual"` up to `MAX_REDIRECTS = 5`; return `502 Too many redirects` if exceeded
-    - Wrap the fetch in `Promise.race` with an `AbortController` timer of `UPSTREAM_TIMEOUT_MS = 30_000`; return `504 Upstream timed out` on abort, `502 Upstream connection failed` on network/DNS error
-    - Apply `rewriteHtml` when status is 2xx and `Content-Type` includes `text/html`
-    - Propagate 4xx/5xx upstream status codes and bodies verbatim
-    - Strip `Server` and `X-Powered-By` from upstream headers
-    - Emit `logRequest` on success; emit `logError` on all error paths
-    - Apply `applySecurityHeaders` to all returned responses
-    - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 4.2, 4.3, 5.1, 5.2, 5.3, 5.4, 5.5, 8.1, 8.2_
-  - [ ]\* 9.2 Write property test for redirect limit — Property 4
-    - **Property 4: Redirect limit enforcement**
-    - Generate redirect chain lengths from 0 to 10; simulate with mock fetch; assert chains ≤ 5 resolve to final response, chains > 5 return `502 Too many redirects`
-    - **Validates: Requirements 2.4, 5.4**
-    - Tag: `// Feature: subdomain-masker, Property 4: Redirect limit enforcement`
-  - [ ]\* 9.3 Write property test for upstream error propagation — Property 10
-    - **Property 10: Upstream error status propagation**
-    - Generate upstream status codes in `[400, 599]` excluding Worker-generated 502/504; assert Masked_Response carries same status and verbatim body
-    - **Validates: Requirements 5.1**
-    - Tag: `// Feature: subdomain-masker, Property 10: Upstream error status propagation`
-  - [ ]\* 9.4 Write unit tests for proxy error paths
-    - Test: network/DNS error → `502 Upstream connection failed`
-    - Test: timeout (abort) → `504 Upstream timed out`
-    - Test: generic unexpected error → `502 Upstream connection failed`
-    - _Requirements: 5.2, 5.3, 5.5_
+- [x] 9. Implement proxy handler with redirect following and timeout
+  - [x] 9.1 `handleProxy(request, targetUrl, subdomain, startTime)` in `src/handlers/proxy.ts`
+    - Manual redirect loop up to `MAX_REDIRECTS = 5`; 30 s `AbortController` timeout
+    - HTML rewriting, header stripping, upstream error propagation, structured logging
+  - [x] 9.2 Property test — Property 4: Redirect limit enforcement (`test/proxy.test.ts`, `it.each` 0–10 hops)
+  - [x] 9.3 Property test — Property 10: Upstream error propagation (`test/proxy.test.ts`)
+  - [x] 9.4 Unit tests — network error → 502, timeout → 504, unexpected error → 502 (`test/proxy.test.ts`)
 
-- [ ] 10. Checkpoint — Ensure all handler tests pass
-  - Run `vitest --run` and confirm all handler-level tests pass.
-  - Ensure all tests pass, ask the user if questions arise.
+- [x] 10. Checkpoint — All handler tests pass ✓
 
-- [ ] 11. Implement router and wire everything together
-  - [ ] 11.1 Implement `route(request: Request, env: Env): Promise<Response>` in `src/router.ts`
-    - Dispatch in priority order: OPTIONS → CORS; `/_health` → health check; resolve route map → if empty → 503; extract subdomain → if null or not in map → 404; otherwise → proxy handler
-    - Emit `logError` for `misconfiguration` (503) and `unmatched_subdomain` (404) paths
-    - _Requirements: 1.4, 3.1, 3.2, 3.3, 6.1, 8.2_
-  - [ ]\* 11.2 Write property test for route map lookup — Property 2
-    - **Property 2: Route Map lookup correctness**
-    - Generate route maps with 1–100 entries; for a key present in the map, assert the Worker proxies to the mapped URL
-    - **Validates: Requirements 1.2, 1.3, 2.1**
-    - Tag: `// Feature: subdomain-masker, Property 2: Route Map lookup correctness`
-  - [ ]\* 11.3 Write property test for unmatched subdomain — Property 6
-    - **Property 6: Unmatched subdomain returns 404**
-    - Generate route maps and subdomain strings not present as keys; assert `404 Not found`
-    - **Validates: Requirements 3.1**
-    - Tag: `// Feature: subdomain-masker, Property 6: Unmatched subdomain returns 404`
-  - [ ] 11.4 Wire entry point in `src/index.ts`
-    - Replace the stub with the real `fetch` handler that calls `route(request, env)` and records start time for duration logging
-    - Ensure the worker exports `export default { fetch }` compatible with the Cloudflare Workers module format
-    - _Requirements: 1.1, 2.1, 7.1, 8.1_
-  - [ ]\* 11.5 Write unit tests for router edge cases
-    - Test: empty route map → `503 Service misconfigured`
-    - Test: `DEFAULT_ROUTE_MAP` entry `reward1` resolves to the correct Target_URL (not 404)
-    - Test: apex domain → `404 Not found`
-    - Test: GET `/_health` → `200 {"status":"ok"}` without upstream call
-    - _Requirements: 1.4, 1.5, 3.2, 7.1, 7.2_
+- [x] 11. Implement router and wire everything together
+  - [x] 11.1 `route(request, env, startTime)` in `src/router.ts` — OPTIONS → CORS → health → route map → proxy/404/503
+  - [x] 11.2 Property test — Property 2: Route Map lookup correctness (`test/router.test.ts`)
+  - [x] 11.3 Property test — Property 6: Unmatched subdomain returns 404 (`test/router.test.ts`)
+  - [x] 11.4 Entry point wired in `src/index.ts` — records `startTime`, delegates to `route()`
+  - [x] 11.5 Unit tests — apex domain → 404, `ROUTE_MAP='{}'` falls back to `DEFAULT_ROUTE_MAP`, `/_health` bypasses route map, `reward1` proxies correctly (`test/router.test.ts`)
 
-- [ ] 12. Final checkpoint — Ensure all tests pass
-  - Run `vitest --run` and confirm the full test suite is green.
-  - Ensure all tests pass, ask the user if questions arise.
+- [x] 12. Final checkpoint — **76 / 76 tests passing** across 7 test files; all 15 design properties (P1–P15) exercised ✓
+
+- [ ] 13. CI/CD and deployment
+  - [x] 13.1 Create `.github/workflows/deploy.yml` — `test` job only (runs tests on every push/PR); deployment handled by Cloudflare's native GitHub integration
+  - [ ] 13.2 Push the repo to GitHub
+  - [ ] 13.3 In Cloudflare dashboard → Workers & Pages → "Connect GitHub" → select this repo; Cloudflare handles auth and auto-deploys on push to `main`
+  - [ ] 13.4 In the Cloudflare dashboard → Workers & Pages → `ocw-subdomain-masker` → Settings → Triggers → add route `*.onecultureworld.com/*` with zone `onecultureworld.com`
+  - [ ] 13.5 (Optional) Set `ROUTE_MAP` environment variable in Workers Settings to add/update subdomains without redeploying
 
 ---
 
@@ -217,7 +104,8 @@ Implement a Cloudflare Worker in TypeScript that performs transparent subdomain 
     { "id": 7, "tasks": ["9.2", "9.3", "9.4"] },
     { "id": 8, "tasks": ["11.1"] },
     { "id": 9, "tasks": ["11.2", "11.3", "11.4"] },
-    { "id": 10, "tasks": ["11.5"] }
+    { "id": 10, "tasks": ["11.5"] },
+    { "id": 11, "tasks": ["13"] }
   ]
 }
 ```
