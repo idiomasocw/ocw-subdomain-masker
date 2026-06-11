@@ -1,0 +1,19 @@
+name = "ocw-subdomain-masker"
+main = "src/index.ts"
+compatibility_date = "2024-11-01"
+
+# Environment variables
+# Set ROUTE_MAP here (for dev) or in the Cloudflare dashboard (for production).
+# Value is a JSON string mapping subdomain keys to target URLs.
+# If absent, the worker falls back to DEFAULT_ROUTE_MAP in src/constants.ts.
+#
+# Example:
+# [vars]
+# ROUTE_MAP = '{"reward1":"https://view.genially.com/670ed038d21493d4843b3e5b","reward2":"https://..."}'
+
+# Routes — configure after deploying to Cloudflare.
+# Uncomment and set zone_name to your domain so the worker handles *.yourdomain.com.
+#
+# [[routes]]
+# pattern = "*.yourdomain.com/*"
+# zone_name = "yourdomain.com"

@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.wrangler/
+
+# Local environment variable overrides — never commit secrets
+.dev.vars
+
+# npm lock file — this project uses pnpm (pnpm-lock.yaml)
+package-lock.json
+.kiro
