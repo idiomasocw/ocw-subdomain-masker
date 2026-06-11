@@ -68,8 +68,23 @@ describe("buildPassThroughRequest", () => {
 
     fc.assert(
       fc.property(
-        // Header values: printable ASCII, no spaces (Headers trims leading/trailing whitespace)
-        fc.dictionary(validName, fc.stringMatching(/^[a-zA-Z0-9\-_,.;:=+@/]{1,40}$/), { maxKeys: 8 }),
+        // Header values: printable ASCII, no spaces (Headers trims leading/trailing whitespace).
+        // Dedupe keys case-insensitively: HTTP header names are case-insensitive, so two
+        // generated keys differing only in case would collapse in the Headers object and
+        // break the "every header survives" assertion (a generator artifact, not a real bug).
+        fc
+          .dictionary(validName, fc.stringMatching(/^[a-zA-Z0-9\-_,.;:=+@/]{1,40}$/), { maxKeys: 8 })
+          .map((dict) => {
+            const seen = new Set<string>();
+            const out: Record<string, string> = {};
+            for (const [k, v] of Object.entries(dict)) {
+              const lower = k.toLowerCase();
+              if (seen.has(lower)) continue;
+              seen.add(lower);
+              out[k] = v;
+            }
+            return out;
+          }),
         fc.array(fc.stringMatching(/^[A-Za-z0-9]+$/), { maxLength: 4 }),
         fc.domain().map((d) => `https://${d}/path`),
         (regularHeaders, cfSuffixes, targetUrl) => {
