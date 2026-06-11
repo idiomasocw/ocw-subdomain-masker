@@ -73,10 +73,12 @@ Implement a Cloudflare Worker in TypeScript that performs transparent subdomain 
 
 - [ ] 13. CI/CD and deployment
   - [x] 13.1 Create `.github/workflows/deploy.yml` — `test` job only (runs tests on every push/PR); deployment handled by Cloudflare's native GitHub integration
-  - [ ] 13.2 Push the repo to GitHub
-  - [ ] 13.3 In Cloudflare dashboard → Workers & Pages → "Connect GitHub" → select this repo; Cloudflare handles auth and auto-deploys on push to `main`
-  - [ ] 13.4 In the Cloudflare dashboard → Workers & Pages → `ocw-subdomain-masker` → Settings → Triggers → add route `*.onecultureworld.com/*` with zone `onecultureworld.com`
-  - [ ] 13.5 (Optional) Set `ROUTE_MAP` environment variable in Workers Settings to add/update subdomains without redeploying
+  - [x] 13.2 Push the repo to GitHub and connect it in Cloudflare (auto-deploys on push to `main`)
+  - [x] 13.3 Bind the Worker via **Custom Domains** (not a wildcard route) — declared in `wrangler.toml` as `routes = [{ pattern = "reward1.onecultureworld.com", custom_domain = true }]`. This only intercepts the listed `reward*` subdomains and leaves all other subdomains (other apps) untouched. Custom Domains route directly to the Worker, avoiding the 522 that a wildcard route + missing origin produced.
+  - [ ] 13.4 **You:** Remove the manually-added wildcard route `*.onecultureworld.com/*` from the Cloudflare dashboard (Worker → Settings → Domains & Routes) — it would intercept every subdomain and is replaced by the Custom Domains above.
+  - [ ] 13.5 **You:** Confirm no wildcard `*` DNS record points at this Worker (already deleted).
+  - [ ] 13.6 To add a new reward link: add one `{ pattern = "rewardN.onecultureworld.com", custom_domain = true }` line to `wrangler.toml`, add the matching `rewardN` key to `ROUTE_MAP` (env var or `DEFAULT_ROUTE_MAP`), and push to `main`.
+  - [ ] 13.7 (Optional) Set `ROUTE_MAP` environment variable in Workers Settings to add/update target URLs without a code change.
 
 ---
 

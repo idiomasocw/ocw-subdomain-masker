@@ -12,10 +12,18 @@ compatibility_flags = ["nodejs_compat"]
 # [vars]
 # ROUTE_MAP = '{"reward1":"https://view.genially.com/670ed038d21493d4843b3e5b","reward2":"https://..."}'
 
-# Routes — intercept all subdomain traffic on onecultureworld.com.
-# Uncomment after creating the GitHub → Cloudflare Workers link and giving
-# the API token Zone:Edit permissions for onecultureworld.com.
+# Custom Domains — bind the Worker to ONLY the specific reward* subdomains.
 #
-# [[routes]]
-# pattern = "*.onecultureworld.com/*"
-# zone_name = "onecultureworld.com"
+# Each entry with `custom_domain = true` makes Cloudflare:
+#   1. auto-create a proxied DNS record for that exact hostname, and
+#   2. route it straight to this Worker (no traditional origin → no 522).
+#
+# This deliberately does NOT use a wildcard, so every other subdomain on
+# onecultureworld.com (your other apps) is left completely untouched.
+#
+# To add a new reward link: add one line below and push to main.
+routes = [
+  { pattern = "reward1.onecultureworld.com", custom_domain = true },
+  # { pattern = "reward2.onecultureworld.com", custom_domain = true },
+  # { pattern = "reward3.onecultureworld.com", custom_domain = true },
+]
