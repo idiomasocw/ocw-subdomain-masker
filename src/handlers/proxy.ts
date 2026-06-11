@@ -3,7 +3,7 @@ import { rewriteHtml } from "../htmlRewriter";
 import { applySecurityHeaders } from "../securityHeaders";
 import { logRequest, logError } from "../logger";
 
-function buildPassThroughRequest(
+export function buildPassThroughRequest(
   original: Request,
   targetUrl: string,
   method: string,

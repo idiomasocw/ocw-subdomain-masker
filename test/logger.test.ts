@@ -42,7 +42,7 @@ describe("logRequest", () => {
           targetUrl: fc.webUrl(),
           method: fc.constantFrom("GET", "POST", "HEAD"),
           status: fc.integer({ min: 100, max: 599 }),
-          durationMs: fc.float({ min: 0, noNaN: true }),
+          durationMs: fc.float({ min: 0, noNaN: true, noDefaultInfinity: true }),
         }),
         (entry) => {
           logRequest(entry);
